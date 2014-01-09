@@ -57,6 +57,7 @@ object Constants {
   val METHOD_COUNT = util.Config.conf.MCache.blocks
 
   val DCACHE_SIZE = util.Config.conf.DCache.size
+  val SCACHE_SIZE = util.Config.conf.SCache.size
 
   // maximum width between ISPM size, MCACHE size and boot ROM size
   val MAX_OFF_WIDTH = List(log2Up(MCACHE_SIZE / 4), log2Up(ISPM_SIZE / 4),
@@ -165,4 +166,5 @@ object Constants {
 
   val STC_SRES  = Bits("b0000")
   val STC_SFREE = Bits("b1000")
+  val STC_SENS = Bits("b0100")
 }

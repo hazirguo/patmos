@@ -84,8 +84,8 @@ object AluOpResetVal extends AluOp {
 class PredOp() extends Bundle() {
   val func = Bits(width = 2) // as they have a strange encoding
   val dest = Bits(width = PRED_BITS)
-  val s1Addr = Bits(width = PRED_BITS+1)
-  val s2Addr = Bits(width = PRED_BITS+1)
+  val s1Addr = Bits(width = PRED_BITS + 1)
+  val s2Addr = Bits(width = PRED_BITS + 1)
 }
 
 object PredOpResetVal extends PredOp {
@@ -113,7 +113,7 @@ class MemOp() extends Bundle() {
   val hword = Bool()
   val byte = Bool()
   val zext = Bool()
-  val typ  = Bits(width = 2)
+  val typ = Bits(width = 2)
 }
 
 object MemOpResetVal extends MemOp {
@@ -125,9 +125,38 @@ object MemOpResetVal extends MemOp {
   typ := Bits(0)
 }
 
+class DecScEx() extends Bundle() {
+  val spill = Bits(width = 1)
+  val fill = Bits(width = 1)
+  val free = Bits(width = 1) 
+  val nSpill = SInt(width = log2Up(SCACHE_SIZE))
+  val nFill = SInt(width = log2Up(SCACHE_SIZE))
+  val sp = UInt(width = DATA_WIDTH) 
+
+}
+
+object DecScExResetVal extends DecScEx {
+  spill := Bits(0)
+  fill := Bits(0)
+  free := Bits(0) 
+  nSpill := SInt(0)
+  nFill := SInt(0)
+  sp := UInt(0)
+}
+
+class ExSc extends Bundle() {
+  val decscex = new DecScEx()
+  val mTop = UInt(width = ADDR_WIDTH)
+}
+
+
+class MemScDec() extends Bundle() {
+  val mTop = UInt(width = ADDR_WIDTH)
+}
+
 class DecEx() extends Bundle() {
   val pc = UInt(width = PC_SIZE)
-  val pred =  Vec.fill(PIPE_COUNT) { Bits(width = PRED_BITS+1) }
+  val pred = Vec.fill(PIPE_COUNT) { Bits(width = PRED_BITS + 1) }
   val aluOp = Vec.fill(PIPE_COUNT) { new AluOp() }
   val predOp = Vec.fill(PIPE_COUNT) { new PredOp() }
   val jmpOp = new JmpOp()
@@ -135,30 +164,31 @@ class DecEx() extends Bundle() {
 
   // the register fields are very similar to RegFileRead
   // maybe join the structures
-  val rsAddr = Vec.fill(2*PIPE_COUNT) { Bits(width = REG_BITS) }
-  val rsData = Vec.fill(2*PIPE_COUNT) { Bits(width = DATA_WIDTH) }
+  val rsAddr = Vec.fill(2 * PIPE_COUNT) { Bits(width = REG_BITS) }
+  val rsData = Vec.fill(2 * PIPE_COUNT) { Bits(width = DATA_WIDTH) }
   val rdAddr = Vec.fill(PIPE_COUNT) { Bits(width = REG_BITS) }
   val immVal = Vec.fill(PIPE_COUNT) { Bits(width = DATA_WIDTH) }
-  val immOp  = Vec.fill(PIPE_COUNT) { Bool() }
+  val immOp = Vec.fill(PIPE_COUNT) { Bool() }
   // maybe we should have similar structure as the Result one here
-  val wrRd  = Vec.fill(PIPE_COUNT) { Bool() }
+  val wrRd = Vec.fill(PIPE_COUNT) { Bool() }
 
   val callAddr = UInt(width = DATA_WIDTH)
   val brcfAddr = UInt(width = DATA_WIDTH)
   val call = Bool()
   val ret = Bool()
   val brcf = Bool()
+ 
 }
 
 object DecExResetVal extends DecEx {
   pc := UInt(0)
   pred := Vec.fill(PIPE_COUNT) { Bits(0) }
-  aluOp :=  Vec.fill(PIPE_COUNT) { AluOpResetVal }
+  aluOp := Vec.fill(PIPE_COUNT) { AluOpResetVal }
   predOp := Vec.fill(PIPE_COUNT) { PredOpResetVal }
   jmpOp := JmpOpResetVal
   memOp := MemOpResetVal
-  rsAddr := Vec.fill(2*PIPE_COUNT) { Bits(0) }
-  rsData := Vec.fill(2*PIPE_COUNT) { Bits(0) }
+  rsAddr := Vec.fill(2 * PIPE_COUNT) { Bits(0) }
+  rsData := Vec.fill(2 * PIPE_COUNT) { Bits(0) }
   rdAddr := Vec.fill(PIPE_COUNT) { Bits(0) }
   immVal := Vec.fill(PIPE_COUNT) { Bits(0) }
   immOp := Vec.fill(PIPE_COUNT) { Bool(false) }
@@ -245,6 +275,7 @@ class MemFe() extends Bundle() {
   val data = Bits(width = DATA_WIDTH)
 }
 
+
 class FeMem() extends Bundle() {
   val pc = UInt(width = MAX_OFF_WIDTH)
 }
@@ -259,14 +290,15 @@ class MemWb() extends Bundle() {
 
 class RegFileRead() extends Bundle() {
   // first two are for pipeline A, second two for pipeline B
-  val rsAddr = Vec.fill(2*PIPE_COUNT) { Bits(INPUT, REG_BITS) }
-  val rsData = Vec.fill(2*PIPE_COUNT) { Bits(OUTPUT, DATA_WIDTH) }
+  val rsAddr = Vec.fill(2 * PIPE_COUNT) { Bits(INPUT, REG_BITS) }
+  val rsData = Vec.fill(2 * PIPE_COUNT) { Bits(OUTPUT, DATA_WIDTH) }
 }
 
 class RegFileIO() extends Bundle() {
   val ena = Bool(INPUT)
   val rfRead = new RegFileRead()
   val rfWrite = Vec.fill(PIPE_COUNT) { new Result().asInput }
+  val rfDebug = Vec.fill(REG_COUNT) { Bits(OUTPUT, DATA_WIDTH) }
 }
 
 class FetchIO extends Bundle() {
@@ -288,7 +320,10 @@ class DecodeIO() extends Bundle() {
   val fedec = new FeDec().asInput
   val decex = new DecEx().asOutput
   val exdec = new ExDec().asInput
-  val rfWrite =  Vec.fill(PIPE_COUNT) { new Result().asInput }
+  val rfWrite = Vec.fill(PIPE_COUNT) { new Result().asInput }
+  // stack cache
+  val decscex = new DecScEx().asOutput
+  val memscdec = new MemScDec().asInput 
 }
 
 class ExecuteIO() extends Bundle() {
@@ -302,6 +337,9 @@ class ExecuteIO() extends Bundle() {
   val memResult = Vec.fill(PIPE_COUNT) { new Result().asInput }
   // branch for FE
   val exfe = new ExFe().asOutput
+  // stack cache
+  val decscex = new DecScEx().asInput
+  val exsc = new ExSc().asOutput
 }
 
 class InOutIO() extends Bundle() {
@@ -335,17 +373,29 @@ class WriteBackIO() extends Bundle() {
   // wb result (unregistered)
   val rfWrite = Vec.fill(PIPE_COUNT) { new Result().asOutput }
   // for result forwarding (register)
-  val memResult =  Vec.fill(PIPE_COUNT) { new Result().asOutput }
+  val memResult = Vec.fill(PIPE_COUNT) { new Result().asOutput }
 }
 
 class PatmosCoreIO() extends Bundle() {
+  val dummy = Bits(OUTPUT, 32)
   val comConf = new OcpIOMasterPort(ADDR_WIDTH, DATA_WIDTH)
   val comSpm = new OcpCoreMasterPort(ADDR_WIDTH, DATA_WIDTH)
   val memPort = new OcpBurstMasterPort(EXTMEM_ADDR_WIDTH, DATA_WIDTH, BURST_LENGTH)
+  //val rfDebug = Vec.fill(REG_COUNT) { Bits(OUTPUT, DATA_WIDTH) }
 }
 
 class PatmosIO() extends Bundle() {
+  val dummy = Bits(OUTPUT, 32)
   val comConf = new OcpIOMasterPort(ADDR_WIDTH, DATA_WIDTH)
   val comSpm = new OcpCoreMasterPort(ADDR_WIDTH, DATA_WIDTH)
-  val sramPins = new RamOutPinsIO(EXTMEM_ADDR_WIDTH-2)
+  val sramPins = new RamOutPinsIO(EXTMEM_ADDR_WIDTH - 2)
+  //val rfDebug = Vec.fill(REG_COUNT) { Bits(OUTPUT, DATA_WIDTH) }
 }
+
+class StackCacheIO() extends  Bundle() {
+  
+   val exsc = new ExSc().asInput
+   val memscdec = new MemScDec().asOutput // m_top
+   val stall = UInt(OUTPUT, width = 1)
+}
+

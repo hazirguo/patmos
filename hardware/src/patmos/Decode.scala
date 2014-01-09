@@ -178,6 +178,13 @@ class Decode() extends Module {
   io.decex.ret := Bool(false)
   io.decex.brcf := Bool(false)
 
+  io.decscex.spill := Bits(0)
+  io.decscex.fill := Bits(0)
+  io.decscex.free := Bits(0)
+  io.decscex.nSpill := SInt(1)
+  io.decscex.nFill := SInt(1)
+  io.decscex.sp := UInt(0)  
+  io.memscdec.mTop := UInt(0)  
   // Long immediates set this
   longImm := Bool(false)
 
@@ -198,19 +205,29 @@ class Decode() extends Module {
     io.decex.wrRd(0) := Bool(true)
   }
   // Stack control
+  val reserveSize = io.memscdec.mTop - io.exdec.sp + stcImm - (UInt(SCACHE_SIZE) << UInt(2))
+  val ensureSize = io.decscex.sp + stcImm - io.memscdec.mTop
   when(opcode === OPCODE_STC) {
+    io.decscex.sp := io.exdec.sp
 	switch(stcfun) {
 	  is(STC_SRES) {
 		io.decex.aluOp(0).isSTC := Bool(true)
 		isSTC := Bool(true)
 		io.decex.immOp(0) := Bool(true)
 		stcVal := io.exdec.sp - stcImm
+		io.decscex.nSpill := reserveSize(ADDR_WIDTH - 1, 2)
+		io.decscex.spill := Mux(reserveSize > UInt(0), Bits(1), Bits(0))
+	  }
+	  is (STC_SENS) {
+	    io.decscex.nFill := ensureSize(ADDR_WIDTH - 1, 2)
+	    io.decscex.fill := Mux(ensureSize > UInt(0), Bits(1), Bits(0))
 	  }
 	  is(STC_SFREE) {
 		io.decex.aluOp(0).isSTC := Bool(true)
 		isSTC := Bool(true)
 		io.decex.immOp(0) := Bool(true)
 		stcVal := io.exdec.sp + stcImm
+		io.decscex.free := Bits(1)
 	  }
 	}
   }
@@ -345,3 +362,4 @@ class Decode() extends Module {
 	}
   }
 }
+

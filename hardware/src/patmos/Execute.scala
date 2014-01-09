@@ -49,8 +49,10 @@ class Execute() extends Module {
   val io = new ExecuteIO()
 
   val exReg = Reg(new DecEx(), init = DecExResetVal)
+  val scReg = Reg(new DecScEx(), init = DecScExResetVal)
   when(io.ena) {
     exReg := io.decex
+    scReg := io.exsc.decscex
   }
 
   def alu(func: Bits, op1: UInt, op2: UInt): Bits = {
@@ -293,6 +295,7 @@ class Execute() extends Module {
 	io.exmem.rd(i).addr := exReg.rdAddr(i)
 	io.exmem.rd(i).valid := exReg.wrRd(i) && doExecute(i)
 	io.exmem.rd(i).data := Mux(exReg.aluOp(i).isMFS, mfsResult, aluResult)
+	io.exsc.mTop := mfsResult
   }
 
   // load/store
@@ -328,4 +331,6 @@ class Execute() extends Module {
   io.exmcache.callRetBase := io.exmem.mem.callRetBase(31,2)
   io.exmcache.callRetAddr := io.exmem.mem.callRetAddr(31,2)
 
+  // stack cache
+  io.exsc.decscex := scReg
 }
