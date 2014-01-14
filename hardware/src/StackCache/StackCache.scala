@@ -65,7 +65,7 @@ class StackCache(SCACHE_SIZE: Int, burstLen: Int) extends Module {
   val slaveCmdReg = Reg(init = Bits(0, width = 3))
   val slaveDataValidReg = Reg(init = Bits(0, width = 1))
   
-  val stall_ = Reg(init = Bits(0,1))
+  val stall_ = Reg(init = Bits(1,1))
   
 
   

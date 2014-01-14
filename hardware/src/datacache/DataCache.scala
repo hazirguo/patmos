@@ -55,7 +55,7 @@ class DataCache extends Module {
 	val scIO = new StackCacheIO()
   }
 
-  io.scIO.stall := UInt(0)
+  io.scIO.stall := UInt(1)
   io.scIO.exsc.decscex.spill := Bits(0)
   io.scIO.exsc.decscex.fill := Bits(0)
   io.scIO.exsc.decscex.free := Bits(0)
@@ -67,7 +67,7 @@ class DataCache extends Module {
   // Register selects
   val selDC = io.master.M.AddrSpace === OcpCache.DATA_CACHE
   val selDCReg = Reg(init = Bool(false))
-  val selSC = io.master.M.AddrSpace === OcpCache.STACK_CACHE
+  val selSC =  io.master.M.AddrSpace === OcpCache.STACK_CACHE
   val selSCReg = Reg(init = Bool(false))
   when(io.master.M.Cmd != OcpCmd.IDLE) {
 	selDCReg := selDC
@@ -84,7 +84,7 @@ class DataCache extends Module {
   // Instantiate stack cache
   val sc = Module(new StackCache(SCACHE_SIZE, BURST_LENGTH))
   sc.io.master.M := io.master.M
-  sc.io.master.M.Cmd := Mux(selSC || io.master.M.Cmd === OcpCmd.WR,
+  sc.io.master.M.Cmd := Mux(selSC,
 							io.master.M.Cmd, OcpCmd.IDLE)
   val scS = sc.io.master.S
   
@@ -94,7 +94,7 @@ class DataCache extends Module {
   // Instantiate bridge for bypasses and writes
   val bp = Module(new NullCache())
   bp.io.master.M := io.master.M
-  bp.io.master.M.Cmd := Mux(!selDC, io.master.M.Cmd, OcpCmd.IDLE)
+  bp.io.master.M.Cmd := Mux(!selDC && !selSC, io.master.M.Cmd, OcpCmd.IDLE)
   val bpS = bp.io.master.S
 
   // Join read requests
@@ -108,6 +108,7 @@ class DataCache extends Module {
   val wc = Module(if (WRITE_COMBINE) new WriteCombineBuffer() else new WriteNoBuffer())
   wc.io.readMaster <> burstReadBus2.io.master
   wc.io.writeMaster.M := io.master.M
+  wc.io.writeMaster.M.Cmd := Mux(!selSC, io.master.M.Cmd, OcpCmd.IDLE)
   val wcWriteS = wc.io.writeMaster.S
   io.slave <> wc.io.slave
 
@@ -119,3 +120,5 @@ class DataCache extends Module {
   // Merge responses
   io.master.S.Resp := dmS.Resp | scS.Resp | bpS.Resp | wcWriteS.Resp
 }
+
+
