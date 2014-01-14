@@ -63,7 +63,7 @@ class StackCache(SCACHE_SIZE: Int, burstLen: Int) extends Module {
   mTopReg := io.scIO.exsc.mTop
   
   val slaveCmdReg = Reg(init = Bits(0, width = 3))
-  
+  val slaveDataValidReg = Reg(init = Bits(0, width = 1))
   
   val stall_ = Reg(init = Bits(0,1))
   
@@ -183,18 +183,17 @@ class StackCache(SCACHE_SIZE: Int, burstLen: Int) extends Module {
 
   when(state === spill_st) {
     stall_ := UInt(0)
-
-    io.slave.M.DataByteEn := UInt(15)
     slaveCmdReg := OcpCmd.WR
     io.slave.M.Addr := m_top
     io.slave.M.Data := rdData
 
     when(io.slave.S.DataAccept === UInt(1)) { //start transfer
       when(nSpill - SInt(2) >= SInt(0)) {
-        //io.slave.M.DataValid := Mux(spillEnCnt === SInt(0), UInt(1), UInt(0))
+        slaveDataValidReg := Mux(spillEnCnt === SInt(0), UInt(1), UInt(0))
         m_top := m_top - UInt(4) // --m_top
         nSpill := nSpill - UInt(1)
         spillEnCnt := Mux(spillEnCnt === SInt(0), spillEnCnt, spillEnCnt - SInt(1))
+        io.slave.M.DataByteEn := Mux(spillEnCnt === SInt(0), UInt(15), UInt(0))
         state := spill_st
       }
         .otherwise {
@@ -265,8 +264,11 @@ class StackCache(SCACHE_SIZE: Int, burstLen: Int) extends Module {
 
   io.scIO.stall := stall_
   io.slave.M.Cmd := slaveCmdReg
+  io.slave.M.DataValid := slaveDataValidReg
 }
   
+
+
 
 
 
