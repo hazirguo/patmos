@@ -373,8 +373,8 @@ namespace patmos
     private: 
       uword_t lazy_pointer;
       bool lp_pulldown;
-      unsigned int Num_blocks_not_spilled_lazy;
-
+      unsigned int Num_blocks_spilled_lazy;
+      bool uninit_lazy_pointer;
     public:
 
       /// Construct a lazy block-based stack cache.

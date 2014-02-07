@@ -643,8 +643,8 @@ void block_stack_cache_t::reset_stats()
 
 block_lazy_stack_cache_t::block_lazy_stack_cache_t(memory_t &memory, unsigned int num_blocks, 
                     unsigned int num_block_bytes) :
-    block_stack_cache_t(memory, num_blocks, num_block_bytes), Num_blocks_not_spilled_lazy(0), 
-    lp_pulldown(true), lazy_pointer(0)
+    block_stack_cache_t(memory, num_blocks, num_block_bytes), Num_blocks_spilled_lazy(0), 
+    lp_pulldown(true), lazy_pointer(0), uninit_lazy_pointer(true)
 {
  // Buffer = new byte_t[num_blocks * Num_block_bytes];
 }
@@ -659,6 +659,13 @@ word_t block_lazy_stack_cache_t::prepare_reserve(uword_t size,
 {
  
    unsigned int size_blocks = size ? (size - 1)/Num_block_bytes + 1 : 0;
+
+
+  if (uninit_lazy_pointer) {
+        uninit_lazy_pointer = false;
+	lazy_pointer = stack_top;
+  }
+
 
   // ensure that the stack cache size is not exceeded
   if (size_blocks > Num_blocks)
@@ -679,7 +686,7 @@ word_t block_lazy_stack_cache_t::prepare_reserve(uword_t size,
   lp_pulldown = (stack_top == lazy_pointer);
 
   // update stack_top first
-  stack_top -= size_blocks * Num_block_bytes;
+  stack_top -= size_blocks * Num_block_bytes;  
   
   uword_t transfer_blocks = 0;
   
@@ -687,7 +694,7 @@ word_t block_lazy_stack_cache_t::prepare_reserve(uword_t size,
 
   uword_t lazy_transfer_blocks = 0;
 
-  uword_t lazy_reserved_blocks = get_num_reserved_blocks(lazy_pointer, lazy_pointer);
+  uword_t lazy_reserved_blocks = get_num_reserved_blocks(lazy_pointer, stack_top);
   
   uword_t non_spilled_blocks = 0;
   
@@ -695,21 +702,22 @@ word_t block_lazy_stack_cache_t::prepare_reserve(uword_t size,
   if (reserved_blocks > Num_blocks) {
     // yes? spill some blocks ...
     transfer_blocks = reserved_blocks - Num_blocks;
-    lazy_transfer_blocks = lazy_reserved_blocks - Num_blocks;
   }
-
- 
+   
+  if (lazy_reserved_blocks > Num_blocks) {
+      lazy_transfer_blocks = lazy_reserved_blocks - Num_blocks;
+     std::cout << "lazy transfer blocks" << lazy_transfer_blocks <<"\n"; 
+  }
   uword_t non_transfer_blocks = transfer_blocks - lazy_transfer_blocks;
 
-  
   // update the stack top pointer of the processor
   stack_spill -= lazy_transfer_blocks * Num_block_bytes;
-  
-  if (lp_pulldown) {
+
+ if (lp_pulldown) {
           // no need to spill uninitialized stack data
          lazy_pointer -= stack_top;
   }
-  else if (lazy_pointer > stack_spill) {
+  if (lazy_pointer > stack_spill) {
           // no need to spill stack data that is already spilled
          lazy_pointer = stack_spill;
    }
@@ -718,10 +726,9 @@ word_t block_lazy_stack_cache_t::prepare_reserve(uword_t size,
   Num_blocks_reserved += size_blocks;
   Max_blocks_reserved = std::max(Max_blocks_reserved, size_blocks);
   Num_blocks_spilled += transfer_blocks;
-  Max_blocks_spilled = std::max(Max_blocks_spilled, transfer_blocks);
-  Num_blocks_not_spilled_lazy += 5;
-
-  return transfer_blocks * Num_block_bytes;
+  Max_blocks_spilled = std::max(Max_blocks_spilled, lazy_transfer_blocks);
+  Num_blocks_spilled_lazy += std::min(lazy_transfer_blocks, get_num_reserved_blocks(stack_spill, lazy_pointer));
+  return std::min(lazy_transfer_blocks, get_num_reserved_blocks(stack_spill, lazy_pointer)) * Num_block_bytes;
 }
 
 word_t block_lazy_stack_cache_t::prepare_free(uword_t size, 
@@ -789,7 +796,7 @@ void block_lazy_stack_cache_t::print_stats(const simulator_t &s, std::ostream &o
                       "   Emptying Frees      : %13$10d\n"
                       "   Transfer Ratio      : %14$10.3f\n"
                       "   Miss Stall Cycles   : %15$10d  %16$10.2f%%\n"
-		      "   Blocks Non Spilled  : %17$10d  %18$10d\n\n")
+		      "   Blocks Spilled Lazy : %17$10d  %18$10d\n\n")
     % Num_blocks_spilled % Max_blocks_spilled
     % Num_blocks_filled  % Max_blocks_filled
     % Num_blocks_reserved % Max_blocks_reserved
@@ -800,13 +807,12 @@ void block_lazy_stack_cache_t::print_stats(const simulator_t &s, std::ostream &o
     % Num_free_empty
     % transfer_ratio
     % Num_stall_cycles % (100.0 * (float)Num_stall_cycles/(float)s.Cycle)
-    % Num_blocks_not_spilled_lazy % Max_blocks_spilled;
+    % Num_blocks_spilled_lazy % Max_blocks_spilled;
 }
 
 void block_lazy_stack_cache_t::reset_stats() 
 {
   Num_blocks_spilled = 0;
-  Num_blocks_not_spilled_lazy = 0;
   Max_blocks_spilled = 0;
   Num_blocks_filled = 0;
   Max_blocks_filled = 0;
@@ -818,4 +824,5 @@ void block_lazy_stack_cache_t::reset_stats()
   Num_bytes_written = 0;
   Num_free_empty = 0;
   Num_stall_cycles = 0;
+  Num_blocks_spilled_lazy = 0;
 }
