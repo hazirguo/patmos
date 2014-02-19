@@ -124,8 +124,18 @@ Errors : 0")
 test_asm(40 "Emitted: 140 bytes
 Errors : 0")
 
-test_asm(41 "Emitted: 140 bytes
+test_asm(41 "Emitted: 80 bytes
 Errors : 0")
+
+test_asm(42 "Emitted: 96 bytes
+Errors : 0")
+
+test_asm(43 "Emitted: 96 bytes
+Errors : 0")
+
+test_asm(44 "Emitted: 236 bytes
+Errors : 0")
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # SIMULATOR TESTS
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -147,6 +157,11 @@ endmacro (test_io_sim)
 
 macro (test_elf_io_sim num expr)
   ADD_TEST(sim-test-${num} ${CMAKE_BINARY_DIR}/src/pasim --maxc 20000 --in ${PROJECT_SOURCE_DIR}/tests/test${num}.in ${PROJECT_SOURCE_DIR}/tests/test${num}.elf)
+  SET_TESTS_PROPERTIES(sim-test-${num} PROPERTIES PASS_REGULAR_EXPRESSION ${expr})
+endmacro (test_elf_io_sim)
+
+macro (test_sim_lp num expr)
+  ADD_TEST(sim-test-${num} ${CMAKE_BINARY_DIR}/src/pasim -S lblock --maxc 20000 ${CMAKE_CURRENT_BINARY_DIR}/test${num}.bin)
   SET_TESTS_PROPERTIES(sim-test-${num} PROPERTIES PASS_REGULAR_EXPRESSION ${expr})
 endmacro (test_elf_io_sim)
 
@@ -239,4 +254,13 @@ test_sim(39 "r1 : 00000005   r2 : 00000008   r3 : 00000009   r4 : 00000001   r5 
 
 test_sim(40 "r8 : 00000210   r9 : 00000210   r10: 00000010   r11: 000000e0   r12: 000000e0   r13: 00000210   r14: 00000100")
 
-test_sim(41 "r1 : 00000000   r2 : 00400000")
+test_sim_lp(41 "   Blocks Not Spilled  :          8           8")
+
+test_sim_lp(42 "   Blocks Not Spilled  :          6           6")
+
+test_sim_lp(43 "   Blocks Not Spilled  :          2           2")
+
+test_sim_lp(44 "r1 : 00000007.*
+   Blocks Spilled      :         10          10.*
+   Blocks Not Spilled  :         10          10
+")

@@ -235,7 +235,7 @@ namespace patmos
     
     virtual bool read(uword_t address, byte_t *value, uword_t size);
 
-    virtual bool write(uword_t address, byte_t *value, uword_t size, uword_t &lazy_pointer);
+    virtual bool write(uword_t address, byte_t *value, uword_t size);
 
     virtual void read_peek(uword_t address, byte_t *value, uword_t size);
 
@@ -371,31 +371,38 @@ namespace patmos
   class block_lazy_stack_cache_t : public block_stack_cache_t
   {
     private: 
-      uword_t lazy_pointer;
-      bool lp_pulldown;
-      unsigned int Num_blocks_spilled_lazy;
-      bool uninit_lazy_pointer;
+      /// Pointer relative to stack top stack tracking data that has been 
+      /// modified.
+      uword_t Lazy_pointer;
+      
+      /// Statistic counter, measuring the number of blocks that were not 
+      /// spilled due to lazy spilling.
+      unsigned int Num_blocks_not_spilled;
+      
+      /// Statistic counter, measuring the maximum number of blocks that were 
+      /// not spilled due to lazy spilling.
+      unsigned int Max_blocks_not_spilled;
     public:
-
       /// Construct a lazy block-based stack cache.
       /// @param memory The memory to spill/fill.
       /// @param num_blocks Size of the stack cache in blocks.
       block_lazy_stack_cache_t(memory_t &memory, unsigned int num_blocks, 
                         unsigned int num_block_bytes);
 
-      virtual ~block_lazy_stack_cache_t();	
+      virtual word_t prepare_reserve(uword_t size, uword_t &stack_spill, 
+                                     uword_t &stack_top);
+      
+      virtual word_t prepare_free(uword_t size, uword_t &stack_spill, 
+                                  uword_t &stack_top);
+       
+      virtual bool write(uword_t address, byte_t *value, uword_t size);
 
-       word_t prepare_reserve(uword_t size, 
-                                   uword_t &stack_spill, uword_t &stack_top);
-       word_t prepare_free(uword_t size,
-                                uword_t &stack_spill, uword_t &stack_top);
-       bool write(uword_t address, byte_t *value, uword_t size, uword_t &stack_top);
+      virtual void print(std::ostream &os) const;
 
-     void print_stats(const simulator_t &s, std::ostream &os, 
-                             bool short_stats);
+      virtual void print_stats(const simulator_t &s, std::ostream &os, 
+                                bool short_stats);
 
-     void reset_stats();
-
+      void reset_stats();
   };
 
   /// Operator to print the state of a stack cache to a stream
