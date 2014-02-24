@@ -136,6 +136,9 @@ Errors : 0")
 test_asm(44 "Emitted: 236 bytes
 Errors : 0")
 
+test_asm(45 "Emitted: 104 bytes
+Errors : 0")
+
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # SIMULATOR TESTS
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -264,3 +267,5 @@ test_sim_lp(44 "r1 : 00000007.*
    Blocks Spilled      :         10          10.*
    Blocks Not Spilled  :         10          10
 ")
+
+test_sim_lp(45 "   Blocks Not Spilled  :          508           508")
