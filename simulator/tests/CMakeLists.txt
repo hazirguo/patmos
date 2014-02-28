@@ -166,7 +166,7 @@ endmacro (test_elf_io_sim)
 macro (test_sim_lp num expr)
   ADD_TEST(sim-test-${num} ${CMAKE_BINARY_DIR}/src/pasim -S lblock --maxc 20000 ${CMAKE_CURRENT_BINARY_DIR}/test${num}.bin)
   SET_TESTS_PROPERTIES(sim-test-${num} PROPERTIES PASS_REGULAR_EXPRESSION ${expr})
-endmacro (test_elf_io_sim)
+endmacro (test_sim_lp)
 
 test_sim(01 "r1 : 00000005   r2 : 0000000a")
 
@@ -268,4 +268,4 @@ test_sim_lp(44 "r1 : 00000007.*
    Blocks Not Spilled  :         10          10
 ")
 
-test_sim_lp(45 "   Blocks Not Spilled  :          508           508")
+test_sim_lp(45 "   Blocks Not Spilled  :        508         508")

@@ -375,6 +375,10 @@ namespace patmos
       /// modified.
       uword_t Lazy_pointer;
       
+      /// Number of blocks that should be evicted but not spilled by the next 
+      /// reserve
+      uword_t Num_blocks_to_evict;
+      
       /// Statistic counter, measuring the number of blocks that were not 
       /// spilled due to lazy spilling.
       unsigned int Num_blocks_not_spilled;
@@ -394,7 +398,19 @@ namespace patmos
       
       virtual word_t prepare_free(uword_t size, uword_t &stack_spill, 
                                   uword_t &stack_top);
-       
+
+      /// Reserve a given number of bytes, potentially spilling stack data to some
+      /// memory.
+      /// @param size The number of bytes to be reserved.
+      /// @param delta The value returned by prepare, i.e., the number of bytes to
+      /// be spilled.
+      /// @param new_spill The new value of the stack spill pointer.
+      /// @param new_top The new value of the stack top pointer.
+      /// @return True when the stack space is actually reserved on the cache,
+      /// false otherwise.
+      virtual bool reserve(uword_t size, word_t delta,
+                          uword_t new_spill, uword_t new_top);
+
       virtual bool write(uword_t address, byte_t *value, uword_t size);
 
       virtual void print(std::ostream &os) const;
